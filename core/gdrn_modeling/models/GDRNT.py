@@ -26,14 +26,18 @@ from .pose_from_pred import pose_from_pred
 from .pose_from_pred_centroid_z import pose_from_pred_centroid_z
 from .pose_from_pred_centroid_z_abs import pose_from_pred_centroid_z_abs
 from .resnet_backbone import ResNetBackboneNet, resnet_spec
+from detectron2.layers import ShapeSpec
+from .swint import build_swint_fpn_dyhead_backbone
+
+from transformers import AutoFeatureExtractor, SwinModel
 
 logger = logging.getLogger(__name__)
 
 
-class GDRN(nn.Module):
+class GDRNT(nn.Module):
     def __init__(self, cfg, backbone, rot_head_net, trans_head_net=None, pnp_net=None):
         super().__init__()
-        assert cfg.MODEL.CDPN.NAME == "GDRN", cfg.MODEL.CDPN.NAME
+        assert cfg.MODEL.CDPN.NAME == "GDRNT", cfg.MODEL.CDPN.NAME
         self.backbone = backbone
 
         self.rot_head_net = rot_head_net
@@ -118,12 +122,18 @@ class GDRN(nn.Module):
             # joints.shape [bs, 1152, 64, 64]
             mask, coor_x, coor_y, coor_z, region = self.rot_head_net(features, x_f64, x_f32, x_f16)
         else:
-            features = self.backbone(x)  # features.shape [bs, 2048, 8, 8] # TODO: If we replace with ViT, we need to modify the shape somehow?
-
+            features = self.backbone(x)["last_hidden_state"]  # features.shape [bs, 2048, 8, 8] # TODO: If we replace with ViT, we need to modify the shape somehow or just stack shapes from different levels?
+            features = features.permute(0, 2, 1)
+            shape = features.shape
+            last_dim_sqrt = int(np.sqrt(features.shape[-1]))
+            features = features.reshape( (shape[0], shape[1], last_dim_sqrt, last_dim_sqrt)    )
+           
             # Should play feature map i.e resize into image shape and do heat map
-
             # joints.shape [bs, 1152, 64, 64]
             mask, coor_x, coor_y, coor_z, region = self.rot_head_net(features)
+
+            # Visualizing feature map (last layer of Swin Transformer)
+            
 
         # TODO: remove this trans_head_net
         # trans = self.trans_head_net(features)
@@ -395,6 +405,7 @@ class GDRN(nn.Module):
             if region_loss_type == "CE":
                 gt_region = gt_region.long()
                 loss_func = nn.CrossEntropyLoss(reduction="sum", weight=None)  # r_head_cfg.XYZ_BIN+1
+               
                 loss_dict["loss_region"] = loss_func(
                     out_region * gt_mask_region[:, None], gt_region * gt_mask_region.long()
                 ) / gt_mask_region.sum().float().clamp(min=1.0)
@@ -562,10 +573,20 @@ def build_model_optimizer(cfg):
         params_lr_list = []
         # backbone net
         block_type, layers, channels, name = resnet_spec[backbone_cfg.NUM_LAYERS]
-        backbone_net = ResNetBackboneNet(
-            block_type, layers, backbone_cfg.INPUT_CHANNEL, freeze=backbone_cfg.FREEZE, rot_concat=r_head_cfg.ROT_CONCAT
-        )
+
+        # Let's build the backbone for swin-t 
+
+        # Test backbone         
+        backbone_net = SwinModel.from_pretrained("microsoft/swin-base-patch4-window7-224") # tiny one is worse than ResNet but larger one is better than Resnet-34
+
+        # Try different SWin backbones 
+
+        #backbone_net = ResNetBackboneNet(
+        #    block_type, layers, backbone_cfg.INPUT_CHANNEL, freeze=backbone_cfg.FREEZE, rot_concat=r_head_cfg.ROT_CONCAT
+        #)
+       
         if backbone_cfg.FREEZE:
+           
             for param in backbone_net.parameters():
                 with torch.no_grad():
                     param.requires_grad = False
@@ -579,9 +600,10 @@ def build_model_optimizer(cfg):
 
         # rotation head net -----------------------------------------------------
         r_out_dim, mask_out_dim, region_out_dim = get_xyz_mask_region_out_dim(cfg)
+       
         rot_head_net = RotWithRegionHead(
             cfg,
-            channels[-1],
+            1024,
             r_head_cfg.NUM_LAYERS,
             r_head_cfg.NUM_FILTERS,
             r_head_cfg.CONV_KERNEL_SIZE,
@@ -700,7 +722,8 @@ def build_model_optimizer(cfg):
         # ================================================
 
         # CDPN (Coordinates-based Disentangled Pose Network)
-        model = GDRN(cfg, backbone_net, rot_head_net, trans_head_net=trans_head_net, pnp_net=pnp_net)
+        model = GDRNT(cfg, backbone_net, rot_head_net, trans_head_net=trans_head_net, pnp_net=pnp_net)
+       
         if cfg.MODEL.CDPN.USE_MTL:
             params_lr_list.append(
                 {
@@ -717,6 +740,7 @@ def build_model_optimizer(cfg):
 
     if cfg.MODEL.WEIGHTS == "":
         ## backbone initialization
+       
         backbone_pretrained = cfg.MODEL.CDPN.BACKBONE.get("PRETRAINED", "")
         if backbone_pretrained == "":
             logger.warning("Randomly initialize weights for backbone!")
@@ -726,4 +750,6 @@ def build_model_optimizer(cfg):
             load_checkpoint(model.backbone, backbone_pretrained, strict=False, logger=logger)
 
     model.to(torch.device(cfg.MODEL.DEVICE))
+
+
     return model, optimizer

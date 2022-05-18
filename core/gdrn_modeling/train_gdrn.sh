@@ -7,7 +7,7 @@ CFG=$1
 CUDA_VISIBLE_DEVICES=$2
 IFS=',' read -ra GPUS <<< "$CUDA_VISIBLE_DEVICES"
 # GPUS=($(echo "$CUDA_VISIBLE_DEVICES" | tr ',' '\n'))
-NGPU=${#GPUS[@]}  # echo "${GPUS[0]}"
+NGPU=1  # echo "${GPUS[0]}"
 echo "use gpu ids: $CUDA_VISIBLE_DEVICES num gpus: $NGPU"
 # CUDA_LAUNCH_BLOCKING=1
 NCCL_DEBUG=INFO

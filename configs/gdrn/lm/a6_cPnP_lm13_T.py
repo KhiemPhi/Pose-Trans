@@ -1,4 +1,4 @@
-_base_ = ["../../_base_/gdrn_base.py"]
+_base_ = ["../../_base_/gdrn_transform_base.py"]
 
 OUTPUT_DIR = "output/gdrn/lm/a6_cPnP_lm13"
 INPUT = dict(
@@ -20,15 +20,19 @@ INPUT = dict(
 )
 
 SOLVER = dict(
-    IMS_PER_BATCH=120,
+    IMS_PER_BATCH=15, #120 is good for Resnet-34, decrease 30 for Resnet-101, 40 for tiny, 230 for tiny freeze
     LR_SCHEDULER_NA="flat_and_anneal",
     ANNEAL_METHOD="cosine",  # "cosine"
-    ANNEAL_POINT=0.72,
+    ANNEAL_POINT=0.99,
     # REL_STEPS=(0.3125, 0.625, 0.9375),
     OPTIMIZER_CFG=dict(_delete_=True, type="Ranger", lr=1e-4, weight_decay=0),
     WEIGHT_DECAY=0.0,
     WARMUP_FACTOR=0.001,
-    WARMUP_ITERS=1000,
+    WARMUP_ITERS=10,
+    TOTAL_EPOCHS=150,
+    CHECKPOINT_PERIOD=10,
+    CHECKPOINT_BY_EPOCH=True,
+    MAX_TO_KEEP=5,
 )
 
 DATASETS = dict(
@@ -36,6 +40,7 @@ DATASETS = dict(
     TEST=("lm_13_test",),
     DET_FILES_TEST=("datasets/BOP_DATASETS/lm/test/test_bboxes/bbox_faster_all.json",),
 )
+
 
 MODEL = dict(
     LOAD_DETS_TEST=True,
@@ -63,8 +68,8 @@ MODEL = dict(
             Z_LOSS_TYPE="L1",
             Z_LW=1.0,
         ),
-        TRANS_HEAD=dict(FREEZE=True),
+        TRANS_HEAD=dict(FREEZE=False),
     ),
 )
 
-TEST = dict(EVAL_PERIOD=0, VIS=False, TEST_BBOX_TYPE="est", USE_PNP=True)  # gt | est
+TEST = dict(EVAL_PERIOD=16000, VIS=False, TEST_BBOX_TYPE="est")  # gt | est

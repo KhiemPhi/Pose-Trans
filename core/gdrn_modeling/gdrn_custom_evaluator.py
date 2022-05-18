@@ -39,6 +39,8 @@ from lib.utils.mask_utils import binary_mask_to_rle
 from lib.utils.utils import dprint
 from lib.vis_utils.image import grid_show, vis_image_bboxes_cv2
 
+from lib.pysixd.visualization import vis_object_poses
+
 from .engine_utils import get_out_coor, get_out_mask
 
 PROJ_ROOT = osp.normpath(osp.join(cur_dir, "../.."))
@@ -158,6 +160,7 @@ class GDRN_EvaluatorCustom(DatasetEvaluator):
         """
         cfg = self.cfg
         if cfg.TEST.USE_PNP:
+            
             if cfg.TEST.PNP_TYPE.lower() == "ransac_pnp":
                 return self.process_pnp_ransac(inputs, outputs, out_dict)
             elif cfg.TEST.PNP_TYPE.lower() == "net_iter_pnp":
@@ -256,7 +259,7 @@ class GDRN_EvaluatorCustom(DatasetEvaluator):
                 # get pose
                 xyz_i = out_xyz[out_i].transpose(1, 2, 0)
                 mask_i = np.squeeze(out_mask[out_i])
-
+              
                 img_points, model_points = self.get_img_model_points_with_coords2d(
                     mask_i,
                     xyz_i,
@@ -266,6 +269,7 @@ class GDRN_EvaluatorCustom(DatasetEvaluator):
                     extent=_input["roi_extent"][inst_i].cpu().numpy(),
                     mask_thr=cfg.MODEL.CDPN.ROT_HEAD.MASK_THR_TEST,
                 )
+                
 
                 rot_est_net = out_rots[out_i]
                 trans_est_net = out_transes[out_i]
@@ -275,6 +279,7 @@ class GDRN_EvaluatorCustom(DatasetEvaluator):
                     dist_coeffs = np.zeros(shape=[8, 1], dtype="float64")
                     points_2d = np.ascontiguousarray(img_points.astype(np.float64))
                     points_3d = np.ascontiguousarray(model_points.astype(np.float64))
+                    
                     camera_matrix = K.astype(np.float64)
 
                     rvec0, _ = cv2.Rodrigues(rot_est_net)
@@ -374,11 +379,12 @@ class GDRN_EvaluatorCustom(DatasetEvaluator):
                 roi_label, cls_name = self._maybe_adapt_label_cls_name(roi_label)
                 if cls_name is None:
                     continue
-
+                
+              
                 # scene_id = int(scene_im_id_split[0])
                 scene_id = scene_im_id_split[0]
                 im_id = int(scene_im_id_split[1])
-
+               
                 # get pose
                 if "rot" in cfg.MODEL.CDPN.TASK.lower():
                     xyz_i = out_xyz[out_i].transpose(1, 2, 0)
@@ -449,7 +455,6 @@ class GDRN_EvaluatorCustom(DatasetEvaluator):
 
                 if cls_name not in self._predictions:
                     self._predictions[cls_name] = OrderedDict()
-
                 result = {"score": score, "R": pose_est[:3, :3], "t": pose_est[:3, 3], "time": output["time"]}
                 self._predictions[cls_name][file_name] = result
 
@@ -548,6 +553,8 @@ class GDRN_EvaluatorCustom(DatasetEvaluator):
             #################
             obj_gts = self.gts[obj_name]
             obj_preds = self._predictions[obj_name]
+            
+
             for file_name, gt_anno in obj_gts.items():
                 if file_name not in obj_preds:  # no pred found
                     for metric_name in metric_names:
@@ -556,6 +563,11 @@ class GDRN_EvaluatorCustom(DatasetEvaluator):
                 # compute each metric
                 R_pred = obj_preds[file_name]["R"]
                 t_pred = obj_preds[file_name]["t"]
+              
+                #---- Visualise ground predicted poses
+                K = np.array([[572.4114, 0, 325.2611], [0, 573.57043, 242.04899], [0, 0, 1]])
+
+
 
                 R_gt = gt_anno["R"]
                 t_gt = gt_anno["t"]
@@ -647,6 +659,7 @@ class GDRN_EvaluatorCustom(DatasetEvaluator):
             big_tab.append(line)
         ### log big tag
         self._logger.info("recalls")
+     
         res_log_tab_str = tabulate(
             big_tab,
             tablefmt="plain",

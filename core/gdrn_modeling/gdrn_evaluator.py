@@ -30,6 +30,15 @@ from transforms3d.quaternions import quat2mat
 
 from .engine_utils import batch_data, get_out_coor, get_out_mask
 from .test_utils import _to_str, eval_cached_results, save_and_eval_results, to_list
+from core.utils.utils import get_emb_show
+
+cv2.setNumThreads(0)  # pytorch issue 1355: possible deadlock in dataloader
+# OpenCL may be enabled by default in OpenCV3; disable it because it's not
+# thread safe and causes unwanted GPU memory allocations.
+cv2.ocl.setUseOpenCL(False)
+
+from bop_toolkit.bop_toolkit_lib import renderer
+from bop_toolkit.bop_toolkit_lib.visualization import vis_object_poses
 
 
 class GDRN_Evaluator(DatasetEvaluator):
@@ -428,6 +437,7 @@ class GDRN_Evaluator(DatasetEvaluator):
                     )
                 )
 
+           
             output["time"] += time.perf_counter() - start_process_time
             # process time for this image
             for item in json_results:
@@ -564,7 +574,7 @@ def gdrn_inference_on_dataset(cfg, model, data_loader, evaluator, amp_test=False
                 obj_names = [evaluator.obj_names[_l] for _l in roi_labels]
                 if all(_obj not in evaluator.train_objs for _obj in obj_names):
                     continue
-
+                        
             with autocast(enabled=amp_test):
                 out_dict = model(
                     batch["roi_img"],
@@ -576,6 +586,7 @@ def gdrn_inference_on_dataset(cfg, model, data_loader, evaluator, amp_test=False
                     roi_coord_2d=batch.get("roi_coord_2d", None),
                     roi_extents=batch.get("roi_extent", None),
                 )
+           
             if torch.cuda.is_available():
                 torch.cuda.synchronize()
             cur_compute_time = time.perf_counter() - start_compute_time
@@ -587,7 +598,9 @@ def gdrn_inference_on_dataset(cfg, model, data_loader, evaluator, amp_test=False
                 outputs[_i]["time"] = cur_compute_time
 
             start_process_time = time.perf_counter()
+           
             evaluator.process(inputs, outputs, out_dict)  # RANSAC/PnP
+       
             cur_process_time = time.perf_counter() - start_process_time
             total_process_time += cur_process_time
 
@@ -628,6 +641,7 @@ def gdrn_inference_on_dataset(cfg, model, data_loader, evaluator, amp_test=False
     # Replace it by an empty dict instead to make it easier for downstream code to handle
     if results is None:
         results = {}
+  
     return results
 
 
@@ -663,7 +677,7 @@ def save_result_of_dataset(cfg, model, data_loader, output_dir, dataset_name):
 
     total = len(data_loader)  # inference data loader must have a fixed length
     results = OrderedDict()
-    VIS = False
+    VIS = False # Check here
 
     logging_interval = 50
     num_warmup = min(5, logging_interval - 1, total - 1)
@@ -726,7 +740,8 @@ def save_result_of_dataset(cfg, model, data_loader, output_dir, dataset_name):
                     img_vis = vis_image_mask_bbox_cv2(
                         image, pred_masks, boxes, labels=[obj_names[int(label)] for label in labels]
                     )
-                    cv2.imshow("img", img_vis.astype("uint8"))
+                    
+                    cv2.imwrite("img_test.jpg", img_vis.astype("uint8"))
                     cv2.waitKey()
                 results[_input["scene_im_id"]] = cur_results
 

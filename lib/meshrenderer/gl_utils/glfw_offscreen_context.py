@@ -9,7 +9,7 @@ import cyglfw3 as glfw
 
 class OffscreenContext(object):
     def __init__(self):
-        assert glfw.Init(), "Glfw Init failed!"
+        #assert glfw.Init(), "Glfw Init failed!"
         glfw.WindowHint(glfw.VISIBLE, False)
         self._offscreen_context = glfw.CreateWindow(1, 1, "", None)
         assert self._offscreen_context, "Could not create Offscreen Context!"

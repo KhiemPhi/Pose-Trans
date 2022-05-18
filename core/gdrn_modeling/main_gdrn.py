@@ -28,7 +28,7 @@ from lib.utils.time_utils import get_time_str
 
 from core.gdrn_modeling.dataset_factory import register_datasets_in_cfg
 from core.gdrn_modeling.engine import GDRN_Lite
-from core.gdrn_modeling.models import GDRN  # noqa
+from core.gdrn_modeling.models import GDRN, GDRNT  # noqa
 
 
 logger = logging.getLogger("detectron2")
@@ -73,6 +73,7 @@ def setup(args):
         cfg.SOLVER.WEIGHT_DECAY = optim_cfg.get("weight_decay", 1e-4)
     # -------------------------------------------------------------------------
     if cfg.get("DEBUG", False):
+        
         iprint("DEBUG")
         args.num_gpus = 1
         args.num_machines = 1
@@ -106,11 +107,14 @@ class Lite(GDRN_Lite):
 
         logger.info(f"Used GDRN module name: {cfg.MODEL.CDPN.NAME}")
         model, optimizer = eval(cfg.MODEL.CDPN.NAME).build_model_optimizer(cfg)
+        print(model)
+        
         logger.info("Model:\n{}".format(model))
 
         # don't forget to call `setup` to prepare for model / optimizer for distributed training.
         # the model is moved automatically to the right device.
-        model, optimizer = self.setup(model, optimizer)
+        model, optimizer = self.setup(model, optimizer) # look into setup to swap out features
+        
 
         if True:
             # sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -119,8 +123,10 @@ class Lite(GDRN_Lite):
 
         if args.eval_only:
             MyCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(cfg.MODEL.WEIGHTS, resume=args.resume)
+            
             return self.do_test(cfg, model)
 
+    
         self.do_train(cfg, args, model, optimizer, resume=args.resume)
         torch.multiprocessing.set_sharing_strategy("file_system")
         return self.do_test(cfg, model)
@@ -129,6 +135,8 @@ class Lite(GDRN_Lite):
 @loguru_logger.catch
 def main(args):
     cfg = setup(args)
+    cfg.DATALOADER.NUM_WORKERS = 1 # decrease cpu usage here, now we need to modify the model later
+    
 
     logger.info(f"start to train with {args.num_machines} nodes and {args.num_gpus} GPUs")
     if args.num_gpus > 1 and args.strategy is None:

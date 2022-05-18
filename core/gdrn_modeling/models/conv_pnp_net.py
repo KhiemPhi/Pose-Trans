@@ -86,9 +86,9 @@ class ConvPnPNet(nn.Module):
         # self.fc1 = nn.Linear(featdim * 8 * 8 + 128, 1024)  # NOTE: 128 for extents feature
         self.fc1 = nn.Linear(featdim * 8 * 8, 1024)
         self.fc2 = nn.Linear(1024, 256)
-        self.fc_r = nn.Linear(256, rot_dim)  # quat or rot6d
+        self.fc_r = nn.Linear(256, rot_dim)  # quat or rot6d, quaternion
         # TODO: predict centroid and z separately
-        self.fc_t = nn.Linear(256, 3)
+        self.fc_t = nn.Linear(256, 3) # rotation 
         self.act = nn.LeakyReLU(0.1, inplace=True)
 
         # feature for extent
@@ -118,9 +118,10 @@ class ConvPnPNet(nn.Module):
 
         """
         bs, in_c, fh, fw = coor_feat.shape
-        if in_c == 3 or in_c == 5:
-            coor_feat[:, :3, :, :] = (coor_feat[:, :3, :, :] - 0.5) * extents.view(bs, 3, 1, 1)
+        #if in_c == 3 or in_c == 5:
+        #    coor_feat[:, :3, :, :] = (coor_feat[:, :3, :, :] - 0.5) * extents.view(bs, 3, 1, 1)
         # convs
+    
         if region is not None:
             x = torch.cat([coor_feat, region], dim=1)
         else:
@@ -142,16 +143,24 @@ class ConvPnPNet(nn.Module):
         for _i, layer in enumerate(self.features):
             x = layer(x)
 
-        x = x.view(-1, self.featdim * 8 * 8)
+       
+        x = x.view(-1, self.featdim * 8 * 8) # TODO: MODIFY HERE BY ME
+
         # extent feature
         # # TODO: use extent the other way: denormalize coords
         # x_extent = self.act(self.extent_fc1(extents))
         # x_extent = self.act(self.extent_fc2(x_extent))
         # x = torch.cat([x, x_extent], dim=1)
-        #
+       
         x = self.act(self.fc1(x))
         x = self.act(self.fc2(x))
         #
-        rot = self.fc_r(x)
+        rot = self.fc_r(x) # two heads
         t = self.fc_t(x)
+
+
+        # Incoming To Transformer Model
+        #1. 
+
+
         return rot, t

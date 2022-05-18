@@ -507,7 +507,7 @@ def imshow_det_bboxes_poses(
         if poses is not None:
             if poses[label]:
                 pose = poses[label][0]  # TODO: handle multiple poses
-                bgr, depth = renderer.render(label, pose[:, :3], pose[:, 3], r_type="mat")
+                bgr, depth = renderer.render(label, pose[:, :3], pose[:, 3], r_type="mat") 
                 # img = img - bgr
                 pose_mask = np.zeros(depth.shape)
                 pose_mask[depth != 0] = 1

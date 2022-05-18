@@ -3,6 +3,13 @@ pretrained_models
 # output dir
 /data
 /datasets
+/vis 
+/output 
+/feature_vis
+/image_set
+/bop_toolkit
+/assets
+/.cache
 *.so.*
 *.tar.gz
 *.egg-info*
@@ -15,6 +22,7 @@ inference_test_output
 *.jpg
 *.png
 *.txt
+*.pth
 
 # compilation and distribution
 __pycache__

@@ -34,15 +34,11 @@ from core.utils.my_checkpoint import MyCheckpointer
 from core.utils.my_writer import MyCommonMetricPrinter, MyJSONWriter, MyPeriodicWriter, MyTensorboardXWriter
 from core.utils.utils import get_emb_show
 from core.utils.data_utils import denormalize_image
-from .data_loader import build_gdrn_train_loader, build_gdrn_test_loader
-from .engine_utils import batch_data, get_out_coor, get_out_mask
-from .gdrn_evaluator import gdrn_inference_on_dataset, GDRN_Evaluator, save_result_of_dataset
-from .gdrn_custom_evaluator import GDRN_EvaluatorCustom
+from core.gdrn_modeling.data_loader import build_gdrn_train_loader, build_gdrn_test_loader
+from core.gdrn_modeling.engine_utils import batch_data, get_out_coor, get_out_mask
+from core.gdrn_modeling.gdrn_evaluator import gdrn_inference_on_dataset, GDRN_Evaluator
+from core.gdrn_modeling.gdrn_custom_evaluator import GDRN_EvaluatorCustom
 import ref
-
-
-logger = logging.getLogger(__name__)
-
 
 class GDRN_Lite(LightningLite):
     def get_evaluator(self, cfg, dataset_name, output_folder=None):
@@ -134,11 +130,8 @@ class GDRN_Lite(LightningLite):
                 )
             data_loader = build_gdrn_test_loader(cfg, dataset_name, train_objs=evaluator.train_objs)
             data_loader = self.setup_dataloaders(data_loader, replace_sampler=False, move_to_device=False)
-            
-            
+          
             results_i = gdrn_inference_on_dataset(cfg, model, data_loader, evaluator, amp_test=cfg.TEST.AMP_TEST)
-            
-            
             results[dataset_name] = results_i
 
         if len(results) == 1:
@@ -229,11 +222,8 @@ class GDRN_Lite(LightningLite):
         # precise BN here, because they are not trivial to implement
         logger.info("Starting training from iteration {}".format(start_iter))
         iter_time = None
-
-        
         with EventStorage(start_iter) as storage:
-      
-            for iteration in range(start_iter, max_iter+3):
+            for iteration in range(start_iter, max_iter):
                 storage.iter = iteration
                 epoch = iteration // dataset_len + 1
 
@@ -275,38 +265,6 @@ class GDRN_Lite(LightningLite):
                     roi_extents=batch.get("roi_extent", None),
                     do_loss=True,
                 )
-                
-                if cfg.TRAIN.VIS_IMG:
-                    with torch.no_grad():
-                        vis_i = 0
-                        roi_img_vis = batch["roi_img"][vis_i].cpu().numpy()
-                        roi_img_vis = denormalize_image(roi_img_vis, cfg).transpose(1, 2, 0).astype("uint8")
-                        tbx_writer.add_image("input_image", roi_img_vis, iteration)
-
-                        out_coor_x = out_dict["coor_x"].detach()
-                        out_coor_y = out_dict["coor_y"].detach()
-                        out_coor_z = out_dict["coor_z"].detach()
-                        out_xyz = get_out_coor(cfg, out_coor_x, out_coor_y, out_coor_z)
-
-                        out_xyz_vis = out_xyz[vis_i].cpu().numpy().transpose(1, 2, 0)
-                        out_xyz_vis = get_emb_show(out_xyz_vis)
-                        tbx_writer.add_image("out_xyz", out_xyz_vis, iteration)
-
-                        gt_xyz_vis = batch["roi_xyz"][vis_i].cpu().numpy().transpose(1, 2, 0)
-                        gt_xyz_vis = get_emb_show(gt_xyz_vis)
-                        tbx_writer.add_image("gt_xyz", gt_xyz_vis, iteration)
-
-                        out_mask = out_dict["mask"].detach()
-                        out_mask = get_out_mask(cfg, out_mask)
-                        out_mask_vis = out_mask[vis_i, 0].cpu().numpy()
-                        tbx_writer.add_image("out_mask", out_mask_vis, iteration)
-
-                        gt_mask_vis = batch["roi_mask"][vis_i].detach().cpu().numpy()
-                        tbx_writer.add_image("gt_mask", gt_mask_vis, iteration)
-
-
-
-
                 losses = sum(loss_dict.values())
                 assert torch.isfinite(losses).all(), loss_dict
 
@@ -336,10 +294,10 @@ class GDRN_Lite(LightningLite):
                 ):
                     for writer in writers:
                         writer.write()
+                  
                     # visualize some images ========================================
                     if cfg.TRAIN.VIS_IMG:
                         with torch.no_grad():
-                           
                             vis_i = 0
                             roi_img_vis = batch["roi_img"][vis_i].cpu().numpy()
                             roi_img_vis = denormalize_image(roi_img_vis, cfg).transpose(1, 2, 0).astype("uint8")

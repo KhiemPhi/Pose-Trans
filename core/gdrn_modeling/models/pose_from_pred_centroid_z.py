@@ -173,6 +173,7 @@ def pose_from_predictions_train(
         roi_cams.unsqueeze_(0)
     assert roi_cams.dim() == 3, roi_cams.dim()
     # absolute coords
+   
     c = torch.stack(
         [
             (pred_centroids[:, 0] * roi_whs[:, 0]) + roi_centers[:, 0],

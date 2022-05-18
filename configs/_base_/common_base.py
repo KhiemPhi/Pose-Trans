@@ -108,7 +108,7 @@ SOLVER = dict(
     TOTAL_EPOCHS=160,
     # NOTE: use string code to get cfg dict like mmdet
     # will ignore OPTIMIZER_NAME, BASE_LR, MOMENTUM, WEIGHT_DECAY
-    OPTIMIZER_CFG=dict(type="RMSprop", lr=1e-4, momentum=0.0, weight_decay=0),
+    OPTIMIZER_CFG=dict(type="RMSprop", lr=1e-3, momentum=0.0, weight_decay=0),
     #######
     GAMMA=0.1,
     BIAS_LR_FACTOR=1.0,
@@ -138,7 +138,7 @@ TRAIN = dict(
     VERBOSE=False,
     VIS=False,
     # vis imgs in tensorboard
-    VIS_IMG=False,
+    VIS_IMG=True,
 )
 # ---------------------------------------------------------------------------- #
 # Specific val options

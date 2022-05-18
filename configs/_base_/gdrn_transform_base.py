@@ -12,18 +12,28 @@ MODEL = dict(
     PIXEL_MEAN=[0, 0, 0],  # to [0,1]
     PIXEL_STD=[255.0, 255.0, 255.0],
     LOAD_DETS_TEST=False,
+    
+    
+    ## SWINT
+    SWINT= dict(OUT_FEATURES=["stage3", "stage4", "stage5"], EMBED_DIM=96, DEPTHS=[2,2,6,2],  NUM_HEADS=[3,6,12,24], WINDOW_SIZE=7, MLP_RATIO=4, DROP_PATH_RATE=0.2, APE=False ),  
+    FPN=dict(IN_FEATURES= ["stage3", "stage4", "stage5"], OUT_CHANNELS=256, NORM='BN', FUSE_TYPE='sum' ),
+    
     CDPN=dict(
-        NAME="GDRN",  # used module file name
+        NAME="GDRNT",  # used module file name
         TASK="rot",
         USE_MTL=False,  # uncertainty multi-task weighting
+
+
+
+
         ## backbone
         BACKBONE=dict(
-            PRETRAINED="torchvision://resnet34",
+            PRETRAINED="",
             ARCH="resnet",
-            NUM_LAYERS=34,
+            NUM_LAYERS=101,
             INPUT_CHANNEL=3,
             INPUT_RES=256,
-            OUTPUT_RES=64,
+            OUTPUT_RES=64, # change this to fix mask shape 
             FREEZE=False,
         ),
         ## rot head
@@ -108,7 +118,7 @@ MODEL = dict(
         ## trans head
         TRANS_HEAD=dict(
             ENABLED=False,
-            FREEZE=False,
+            FREEZE=True,
             LR_MULT=1.0,
             NUM_LAYERS=3,
             NUM_FILTERS=256,
@@ -132,7 +142,7 @@ MODEL = dict(
 )
 
 TEST = dict(
-    EVAL_PERIOD=0,
+    EVAL_PERIOD=1,
     VIS=False,
     TEST_BBOX_TYPE="gt",  # gt | est
     USE_PNP=False,  # use pnp or direct prediction

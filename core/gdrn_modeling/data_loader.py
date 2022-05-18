@@ -347,6 +347,7 @@ class GDRN_DatasetFromList(Base_DatasetFromList):
         # for 6d pose task, flip is now allowed in general except for some 2d keypoints methods
         image, transforms = T.apply_augmentations(self.augmentation, image)
         im_H, im_W = image_shape = image.shape[:2]  # h, w
+       
 
         # NOTE: scale camera intrinsic if necessary ================================
         scale_x = im_W / im_W_ori

@@ -1,4 +1,4 @@
-_base_ = ["../../_base_/gdrn_base.py"]
+_base_ = ["../../_base_/gdrn_transform_base.py"]
 
 OUTPUT_DIR = "output/gdrn/lm/a6_cPnP_lm13"
 INPUT = dict(
@@ -20,15 +20,16 @@ INPUT = dict(
 )
 
 SOLVER = dict(
-    IMS_PER_BATCH=120,
+    IMS_PER_BATCH=40, #120 is good for Resnet-34, decrease 30 for Resnet-101, 20 for tiny, 7 for
     LR_SCHEDULER_NA="flat_and_anneal",
     ANNEAL_METHOD="cosine",  # "cosine"
-    ANNEAL_POINT=0.72,
+    ANNEAL_POINT=0.99,
     # REL_STEPS=(0.3125, 0.625, 0.9375),
     OPTIMIZER_CFG=dict(_delete_=True, type="Ranger", lr=1e-4, weight_decay=0),
     WEIGHT_DECAY=0.0,
     WARMUP_FACTOR=0.001,
-    WARMUP_ITERS=1000,
+    WARMUP_ITERS=10,
+    TOTAL_EPOCHS=300,
 )
 
 DATASETS = dict(
@@ -67,4 +68,4 @@ MODEL = dict(
     ),
 )
 
-TEST = dict(EVAL_PERIOD=0, VIS=False, TEST_BBOX_TYPE="est", USE_PNP=True)  # gt | est
+TEST = dict(EVAL_PERIOD=4000, VIS=False, TEST_BBOX_TYPE="est")  # gt | est

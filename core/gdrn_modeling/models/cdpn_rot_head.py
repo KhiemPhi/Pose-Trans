@@ -134,6 +134,7 @@ class RotHeadNet(nn.Module):
                 normal_init(m, std=0.001)
 
     def forward(self, x, x_f64=None, x_f32=None, x_f16=None):
+       
         if self.concat:
             if self.freeze:
                 with torch.no_grad():

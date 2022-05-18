@@ -16,12 +16,14 @@ class MyCheckpointer(DetectionCheckpointer):
         # HACK: deal with lite model
         if isinstance(model, (DistributedDataParallel, DataParallel, _LiteModule)):
             model = model.module
+       
         super().__init__(
             model,
             save_dir,
             save_to_disk=save_to_disk,
             **checkpointables,
         )
+        self.backbone = model.backbone
 
     def _load_file(self, filename):
         if filename.endswith(".pkl"):

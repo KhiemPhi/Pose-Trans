@@ -182,6 +182,7 @@ class RotWithRegionHead(nn.Module):
             else:
                 for i, l in enumerate(self.features):
                     x = l(x)
+              
                 mask = x[:, : self.mask_output_dim, :, :]
                 xyz = x[:, self.mask_output_dim : self.mask_output_dim + self.rot_output_dim, :, :]
                 region = x[:, self.mask_output_dim + self.rot_output_dim :, :, :]
